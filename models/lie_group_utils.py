@@ -1,3 +1,19 @@
+"""Lie group primitives used by the InEKF implementation.
+
+Conventions follow the micro Lie theory notation used for state estimation:
+
+- SO(3) tangent vectors are 3-vectors.
+- SE_2(3) tangent vectors are ordered as ``[phi, rho_v, rho_p]``.
+- ``plus_right(X, tau)`` is ``X @ Exp(tau)``.
+- ``minus_right(Y, X)`` is ``Log(X^{-1} @ Y)``.
+
+The elementary composition/inverse Jacobians below are written for right
+perturbations. The Exp/Log/plus/minus Jacobian helpers intentionally use
+central finite differences in tangent coordinates; this keeps the API aligned
+with the paper's Jacobian blocks while avoiding a partial closed-form SE_2(3)
+implementation that would be easier to misuse.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -163,18 +179,22 @@ def inverse(X: np.ndarray) -> np.ndarray:
 
 
 def plus_right(X: np.ndarray, tau: np.ndarray) -> np.ndarray:
+    """Right plus operator: X (+) tau = X @ Exp(tau)."""
     return compose(X, exp_se23(tau))
 
 
 def minus_right(Y: np.ndarray, X: np.ndarray) -> np.ndarray:
+    """Right minus operator: Y (-) X = Log(X^{-1} @ Y)."""
     return log_se23(compose(inverse(X), Y))
 
 
 def correction_left(X: np.ndarray, delta_xi: np.ndarray) -> np.ndarray:
+    """Left correction injection used by the current InEKF update."""
     return compose(exp_se23(delta_xi), X)
 
 
 def correction_right(X: np.ndarray, delta_xi: np.ndarray) -> np.ndarray:
+    """Right correction injection, equivalent to plus_right(X, delta_xi)."""
     return plus_right(X, delta_xi)
 
 
@@ -218,7 +238,7 @@ def jacobian_composition_wrt_second(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 
 
 def jacobian_exp(xi: np.ndarray) -> np.ndarray:
-    """Right Jacobian of SE_2(3) Exp, computed in tangent coordinates."""
+    """Right Jacobian of SE_2(3) Exp, computed by central differences."""
     xi = _as_vector(xi, 9)
     X = exp_se23(xi)
 
@@ -229,7 +249,7 @@ def jacobian_exp(xi: np.ndarray) -> np.ndarray:
 
 
 def jacobian_log(X: np.ndarray) -> np.ndarray:
-    """Jacobian of Log(X) for right perturbations X * Exp(dx)."""
+    """Jacobian of Log(X) for right perturbations, computed numerically."""
     X = np.asarray(X, dtype=float).reshape(5, 5)
     base = log_se23(X)
 

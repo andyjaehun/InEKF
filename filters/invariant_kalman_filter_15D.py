@@ -11,7 +11,12 @@ from utils.math_utils import fit_diag, fit_vector
 
 
 class InvariantKalmanFilter15D:
-    """SE_2(3) InEKF with 15D error state [dR, dv, dp, dbg, dba]."""
+    """SE_2(3) InEKF with 15D error state [dR, dv, dp, dbg, dba].
+
+    The shared Lie utilities expose right plus/minus operators. This filter
+    keeps the benchmark's left correction injection, Exp(delta_xi) @ X, when
+    the full SE_2(3) correction branch is active.
+    """
 
     def __init__(
         self,
@@ -207,6 +212,7 @@ class InvariantKalmanFilter15D:
             self.v = self.v + self.delta[3:6]
             self.p = self.p + self.delta[6:9]
         else:
+            # Left injection is intentional here; plus_right would inject on the right.
             self.Rot, self.v, self.p = lie.from_matrix(correction_left(lie.as_matrix(self.Rot, self.v, self.p), self.delta[:9]))
         if self.update_biases and self.use_imu_rotation and self.rotation_input_type == "rate":
             self.gyro_bias = self.gyro_bias + self.delta[9:12]
@@ -241,6 +247,7 @@ class InvariantKalmanFilter15D:
             self.v = self.v + self.delta[3:6]
             self.p = self.p + self.delta[6:9]
         else:
+            # Same left-injection convention as the position update.
             self.Rot, self.v, self.p = lie.from_matrix(correction_left(lie.as_matrix(self.Rot, self.v, self.p), self.delta[:9]))
         if self.update_biases and self.use_imu_rotation and self.rotation_input_type == "rate":
             self.gyro_bias = self.gyro_bias + self.delta[9:12]

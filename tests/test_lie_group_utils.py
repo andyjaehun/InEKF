@@ -10,6 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from models.lie_group_utils import (
+    adjoint_se23,
     compose,
     exp_se23,
     exp_so3,
@@ -18,10 +19,14 @@ from models.lie_group_utils import (
     inverse,
     jacobian_exp,
     jacobian_log,
+    left_jacobian_inv_so3,
+    left_jacobian_so3,
     log_se23,
     log_so3,
     minus_right,
     plus_right,
+    right_jacobian_inv_so3,
+    right_jacobian_so3,
     symmetrize_covariance,
     vee_se23,
     vee_so3,
@@ -42,6 +47,8 @@ def test_so3() -> None:
     assert_close(log_so3(np.eye(3)), np.zeros(3))
     assert_close(exp_so3(log_so3(exp_so3(w))), exp_so3(w))
     assert_close(log_so3(exp_so3(w)), w)
+    assert_close(left_jacobian_so3(w) @ left_jacobian_inv_so3(w), np.eye(3))
+    assert_close(right_jacobian_so3(w) @ right_jacobian_inv_so3(w), np.eye(3))
 
 
 def test_se23() -> None:
@@ -61,6 +68,15 @@ def test_se23() -> None:
     assert_close(plus_right(X, minus_right(Y, X)), Y)
 
 
+def test_adjoint_identity() -> None:
+    xi = np.array([0.1, -0.2, 0.05, 1.0, 0.2, -0.3, -0.4, 0.7, 0.5])
+    tau = np.array([-0.03, 0.02, 0.01, 0.05, -0.02, 0.03, 0.01, 0.04, -0.05])
+    X = exp_se23(xi)
+    lhs = compose(compose(X, exp_se23(tau)), inverse(X))
+    rhs = exp_se23(adjoint_se23(X) @ tau)
+    assert_close(lhs, rhs)
+
+
 def test_jacobian_shapes_and_covariance() -> None:
     xi = np.array([0.02, -0.03, 0.01, 0.1, 0.2, -0.1, -0.2, 0.3, 0.4])
     X = exp_se23(xi)
@@ -78,5 +94,6 @@ def test_jacobian_shapes_and_covariance() -> None:
 if __name__ == "__main__":
     test_so3()
     test_se23()
+    test_adjoint_identity()
     test_jacobian_shapes_and_covariance()
     print("lie_group_utils tests passed")

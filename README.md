@@ -58,9 +58,49 @@ Implemented `SE_2(3)` operations:
 [phi, rho_v, rho_p]
 ```
 
-The plus/minus and Jacobian helper functions are defined for right
-perturbations. The current filter correction step keeps the existing
-left-injection convention for benchmark compatibility.
+## Micro Lie Theory Convention Audit
+
+The core operators in `models/lie_group_utils.py` follow the notation used in
+Sola, Deray, and Atchuthan, "A micro Lie theory for state estimation in
+robotics":
+
+- `hat_so3`, `vee_so3`, `exp_so3`, and `log_so3` use the standard `SO(3)`
+  skew map, Rodrigues exponential, and logarithm.
+- `left_jacobian_so3`, `right_jacobian_so3`,
+  `left_jacobian_inv_so3`, and `right_jacobian_inv_so3` use the standard
+  closed-form `SO(3)` Jacobian expressions.
+- `hat_se23`, `vee_se23`, `exp_se23`, and `log_se23` use the embedded
+  `SE_2(3)` matrix state
+  `[R, v, p; 0, 1, 0; 0, 0, 1]` with tangent vector order
+  `[phi, rho_v, rho_p]`.
+- `adjoint_se23` implements the `SE_2(3)` adjoint for that same tangent order:
+  the rotation block is `R`, and the velocity/position cross blocks are
+  `[v]x R` and `[p]x R`.
+
+The repository exposes the right perturbation operators:
+
+```text
+plus_right(X, tau)  = X @ Exp(tau)
+minus_right(Y, X)   = Log(X^{-1} @ Y)
+```
+
+The inverse and composition Jacobian helpers are written for this right
+perturbation convention. The `Exp`, `Log`, plus, and minus Jacobian helpers are
+central finite-difference implementations in tangent coordinates. They are
+therefore convention-compatible with the micro Lie theory API, but they are not
+claimed to be closed-form analytic `SE_2(3)` Jacobians.
+
+One implementation detail is intentionally different: the current benchmark
+filter update injects corrections on the left,
+
+```text
+X_corrected = Exp(delta_xi) @ X_predicted
+```
+
+instead of using `plus_right(X, delta_xi)`. This preserves the existing InEKF
+benchmark behavior. In short: the reusable plus/minus/Jacobian utilities are
+right-perturbation utilities, while the filter's correction injection is a
+left-injection step.
 
 ## Nominal State
 
@@ -107,6 +147,9 @@ delta = K @ innovation
 delta_xi = delta[0:9]
 X_corrected = Exp(delta_xi) @ X_predicted
 ```
+
+This is the left-injection convention described above. It should not be read as
+a call to the right plus operator, whose definition is `X @ Exp(delta_xi)`.
 
 For the 15D filter, bias corrections are then applied as:
 

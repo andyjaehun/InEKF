@@ -11,7 +11,11 @@ from utils.math_utils import fit_diag, fit_vector
 
 
 class InvariantKalmanFilter:
-    """Small SE_2(3) InEKF-style filter for repository comparison."""
+    """Small SE_2(3) InEKF-style filter for repository comparison.
+
+    The shared Lie utilities expose right plus/minus operators. This filter
+    keeps the benchmark's left correction injection, Exp(delta) @ X.
+    """
 
     def __init__(
         self,
@@ -146,7 +150,8 @@ class InvariantKalmanFilter:
         _, P_update, self.innovation, self.S, self.K = kalman_update(
             np.zeros(self.error_dim, dtype=float), self.P, self.innovation, self.H, self.Rm
         )
-        # INEKF-U3: map error correction through exp(delta) and inject it into X.
+        # INEKF-U3: inject the correction on the left: X <- Exp(delta) @ X.
+        # This is intentionally separate from plus_right(X, delta) = X @ Exp(delta).
         self.delta = self.K @ self.innovation
         self.dX = exp_se23(self.delta)
         self.Rot, self.v, self.p = lie.from_matrix(correction_left(lie.as_matrix(self.Rot, self.v, self.p), self.delta))
@@ -174,6 +179,7 @@ class InvariantKalmanFilter:
         _, P_update, self.innovation, self.S, self.K = kalman_update(
             np.zeros(self.error_dim, dtype=float), self.P, self.innovation, H, Rm
         )
+        # Same left-injection convention as the position update.
         self.delta = self.K @ self.innovation
         self.dX = exp_se23(self.delta)
         self.Rot, self.v, self.p = lie.from_matrix(correction_left(lie.as_matrix(self.Rot, self.v, self.p), self.delta))
