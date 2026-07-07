@@ -1,0 +1,84 @@
+# InEKF-only benchmark settings.
+
+common:
+  pose_type: 3d
+  mode: imu_only
+  state_convention:
+    inekf_9d_error: [delta_phi, delta_v, delta_p]
+    inekf_15d_error: [delta_phi, delta_v, delta_p, delta_bg, delta_ba]
+    pose_output_3d: [px, py, pz, roll, pitch, yaw]
+
+dataset:
+  # To switch back to KAIST VIO, use this block:
+  #type: kaist_vio
+  #name: kaist_vio_rotation
+  #bag: datasets/KAIST_VIO/rotation.bag
+  #imu_topic: /mavros/imu/data
+  #gt_topic: /pose_transformed
+  #linear_source: accel
+
+  type: m2dgr
+  name: m2dgr_street_02
+  bag: datasets/M2DGR/street_02.bag
+  gt_txt: datasets/M2DGR/street_02.txt
+  imu_topic: /handsfree/imu
+  gnss_topic: /ublox/fix
+  linear_source: accel
+
+invariant_kalman_filter:
+  filter:
+    name: inekf_9d
+  notes: >
+    SE_2(3) InEKF using 9D tangent error state [delta_phi, delta_v, delta_p].
+  initialization:
+    mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    velocity_mean: [0.0, 0.0, 0.0]
+    cov_diag: [0.001, 0.001, 0.001, 2.0, 2.0, 2.0, 5.0, 5.0, 5.0]
+  motion_model:
+    use_imu_velocity: true
+    use_imu_rotation: true
+    velocity_blend: 0.0
+    process_noise_diag: [1.0e-6, 1.0e-6, 1.0e-6, 1.0e-3, 1.0e-3, 1.0e-3, 1.0e-3, 1.0e-3, 1.0e-3]
+    translation_input_frame: world
+    translation_input_type: acceleration
+    gravity: [0.0, 0.0, -9.81]
+    accel_bias: [0.0, 0.0, 0.0]
+    gyro_bias: [0.0, 0.0, 0.0]
+    rotation_input_type: rate
+    rotation_representation: rotvec
+  measurement_model:
+    position_indices: [0, 1, 2]
+    measurement_noise_diag: [0.0025, 0.0025, 0.0025]
+    innovation_gate_m: 0.8
+    mahalanobis_gate: 9.0
+
+invariant_kalman_filter_15d:
+  filter:
+    name: inekf_15d
+  notes: >
+    SE_2(3) InEKF using 15D tangent error state
+    [delta_phi, delta_v, delta_p, delta_bg, delta_ba].
+  initialization:
+    mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    velocity_mean: [0.0, 0.0, 0.0]
+    cov_diag: [0.001, 0.001, 0.001, 2.0, 2.0, 2.0, 5.0, 5.0, 5.0, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5]
+  motion_model:
+    use_imu_velocity: true
+    use_imu_rotation: true
+    update_biases: true
+    velocity_blend: 0.0
+    covariance_floor: 1.0e-12
+    covariance_ceiling: 1.0e6
+    max_delta_norm: 100.0
+    process_noise_diag: [1.0e-6, 1.0e-6, 1.0e-6, 1.0e-3, 1.0e-3, 1.0e-3, 1.0e-3, 1.0e-3, 1.0e-3, 1.0e-8, 1.0e-8, 1.0e-8, 1.0e-6, 1.0e-6, 1.0e-6]
+    translation_input_frame: body
+    translation_input_type: acceleration
+    gravity: [0.0, 0.0, -9.81]
+    accel_bias: [0.0, 0.0, 0.0]
+    gyro_bias: [0.0, 0.0, 0.0]
+    rotation_input_type: rate
+    rotation_representation: rotvec
+  measurement_model:
+    measurement_noise_diag: [0.0025, 0.0025, 0.0025]
+    innovation_gate_m: 0.8
+    mahalanobis_gate: 9.0
